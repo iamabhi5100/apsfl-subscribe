@@ -3,6 +3,7 @@ import 'package:apsflsubscribes/utils/pallete.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class PaymentHistory extends StatefulWidget {
   const PaymentHistory({Key? key}) : super(key: key);
@@ -38,17 +39,28 @@ class _PaymentHistoryState extends State<PaymentHistory> {
     });
 
     final String apiUrl =
-        'http://bssuat.apsfl.co.in/apiv1/subscriberApp/cstmr_paymnts_dtls';
+        'http://bss.apsfl.co.in/apiv1/subscriberApp/cstmr_paymnts_dtls';
+
+    final storage = FlutterSecureStorage();
+    final String? token = await storage.read(key: 'token');
+    final String? cafId = await storage.read(key: 'caf_id');
+
+    if (token == null || cafId == null) {
+      setState(() {
+        _isLoading = false;
+      });
+      // Handle the case where token or caf_id is not available
+      return;
+    }
 
     final Map<String, String> headers = {
-      'x-access-token':
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyIwIjp7ImNhZl9pZCI6MjAwMTIzNzE3LCJreWMiOiJObyIsIm1ibF9udSI6Nzk4OTkyNTc2MSwiY3N0bXJfbm0iOiJzaXZlIGt1bWFyIn0sImFwcCI6bnVsbCwiaWF0IjoxNzEyMDU0MDM0fQ.9g3TYEcbZEPlktcOr7VTFj47kNVo5eYOmDD4UgdtBFM',
+      'x-access-token': token,
       'Content-Type': 'application/json'
     };
 
     final Map<String, dynamic> requestBody = {
       "app_type": "Customer",
-      "caf_id": "200123717",
+      "caf_id": int.parse(cafId), // Parse caf_id to int if needed
       "device_id": "OPM1.171019.026",
       "device_name": "vivovivo+1811",
       "version_code": 26

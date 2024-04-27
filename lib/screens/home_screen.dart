@@ -52,6 +52,13 @@ class _HomePageState extends State<HomePage>
   String? lmoName;
   String? lmoCd;
   int? lmoMobile;
+  int? crnt_pln_id;
+
+  void _storeCurrentPlanId(String crnt_pln_id) async {
+    final storage = FlutterSecureStorage();
+    await storage.write(key: 'current_plan_id', value: crnt_pln_id);
+    print('this is secure storage outside $crnt_pln_id');
+  }
 
   Future<void> _fetchData() async {
     if (_isLoading) return;
@@ -62,14 +69,26 @@ class _HomePageState extends State<HomePage>
 
     const apiUrl = 'http://bss.apsfl.co.in/apiv1/subscriberApploginDtls';
 
+    final storage = FlutterSecureStorage();
+    final String? token = await storage.read(key: 'token');
+    final String? cafId = await storage.read(key: 'caf_id');
+
+    if (token == null || cafId == null) {
+      setState(() {
+        _isLoading = false;
+      });
+      // Handle the case where token or caf_id is not available
+      return;
+    }
+
     final Map<String, String> headers = {
-      'x-access-token': 'YOUR_ACCESS_TOKEN',
+      'x-access-token': token,
       'Content-Type': 'application/json'
     };
 
     final Map<String, dynamic> requestBody = {
       "app_type": "Customer",
-      "caf_id": "200123717",
+      "caf_id": int.parse(cafId), // Parse caf_id to int if needed
       "device_id": "OPM1.171019.026",
       "device_name": "vivovivo+1811",
       "version_code": 26
@@ -81,8 +100,6 @@ class _HomePageState extends State<HomePage>
       body: json.encode(requestBody),
     );
 
-    // print('Response body: ${response.body}');
-
     if (response.statusCode == 200) {
       final Map<String, dynamic> responseData = json.decode(response.body);
       final List<dynamic> userData = responseData['data'];
@@ -93,13 +110,18 @@ class _HomePageState extends State<HomePage>
         setState(() {
           _isLoading = false;
           firstName = userInfo['cstmr_nm'].toString();
-          cafId = userInfo['caf_id'];
+          this.cafId = userInfo['caf_id'];
           contactNo = userInfo['mbl_nu'];
           sbscrId = userInfo['mdlwe_sbscr_id'].toString();
           lmoName = userInfo['lmo_name'].toString();
           lmoCd = userInfo['lmo_cd'].toString();
           lmoMobile = userInfo['lmo_mobile'];
-          // print('first Name from parent component: $firstName');
+          crnt_pln_id = userInfo['crnt_pln_id'];
+
+          print('current plan: $crnt_pln_id');
+          // Store crnt_pln_id using flutter_secure_storage
+          _storeCurrentPlanId(crnt_pln_id.toString());
+          print('this is secure storage inside $crnt_pln_id');
         });
       } else {
         setState(() {
@@ -128,21 +150,34 @@ class _HomePageState extends State<HomePage>
   String? downNetSpeed;
   String? basePackage;
 
+  List<dynamic> dataList = [];
+  // bool _isLoading = false;
+  String? endDate;
+
   Future<void> _cust_info() async {
     const String apiUrl =
         'http://bss.apsfl.co.in/apiv1/subscriberApp/cust_info';
 
-    final _storage = const FlutterSecureStorage();
-    final token = await _storage.read(key: 'token');
+    final storage = FlutterSecureStorage();
+    final String? token = await storage.read(key: 'token');
+    final String? cafId = await storage.read(key: 'caf_id');
+
+    if (token == null || cafId == null) {
+      setState(() {
+        _isLoading = false;
+      });
+      // Handle the case where token or caf_id is not available
+      return;
+    }
 
     final Map<String, String> headers = {
-      'x-access-token': '$token',
+      'x-access-token': token,
       'Content-Type': 'application/json'
     };
 
     final Map<String, dynamic> requestBody = {
       "app_type": "Customer",
-      "caf_id": 200123717,
+      "caf_id": int.parse(cafId),
       "device_id": "OPM1.171019.026",
       "device_type": "vivovivo+1811"
     };
@@ -159,6 +194,7 @@ class _HomePageState extends State<HomePage>
       final List<dynamic> userInfo = data['user_info'] ?? [];
 
       if (userInfo.isNotEmpty) {
+        final String cycleEndDt = userInfo[0]['cycle_end_dt'].toString();
         final String netspeed = userInfo[0]['hsi_crnt_prfle_tx'].toString();
         final String package = userInfo[0]['pckge_nm'].toString();
         final List<String> parts = netspeed.split('_UP_');
@@ -183,6 +219,8 @@ class _HomePageState extends State<HomePage>
           upNetSpeed = upload;
           downNetSpeed = download;
           basePackage = package;
+          endDate = cycleEndDt;
+          // print('this is endDate $endDate');
         });
       } else {
         throw Exception('User info not found');
@@ -199,6 +237,7 @@ class _HomePageState extends State<HomePage>
     // print('Building HomePage...');
 
     // Use FutureBuilder to build the widget tree based on the result of _fetchDataFuture
+    // print('this is end date data $endDate');
     return FutureBuilder(
       future: _fetchDataFuture,
       builder: (context, snapshot) {
@@ -213,28 +252,45 @@ class _HomePageState extends State<HomePage>
                 color: Colors.white,
                 // borderRadius: BorderRadius.circular(10),
               ),
-              child: const Column(
+              child: Column(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                            Color.fromARGB(255, 204, 85, 45)),
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        'Loading',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                  Material(
+                    elevation: 8,
+                    child: Container(
+                      height: MediaQuery.of(context).size.height * 0.08,
+                      width: MediaQuery.of(context).size.width * 0.5,
+                      decoration: BoxDecoration(
+                        color: Colors.transparent,
+                        border: Border.all(width: 1),
+                        borderRadius: const BorderRadius.all(
+                          Radius.circular(10),
                         ),
                       ),
-                    ],
+                      child: const Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                Color.fromARGB(255, 204, 85, 45)),
+                          ),
+                          SizedBox(width: 10),
+                          DefaultTextStyle(
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                            child: Text(
+                              'Loading',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -366,7 +422,9 @@ class _HomePageState extends State<HomePage>
                   const SizedBox(
                     height: 20,
                   ),
-                  const PlanDetailScreen(),
+                  PlanDetailScreen(
+                    endDate: endDate,
+                  ),
                   const SizedBox(
                     height: 20,
                   ),

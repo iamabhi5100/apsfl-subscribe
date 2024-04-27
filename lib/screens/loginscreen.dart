@@ -48,13 +48,22 @@ class _LoginScreenState extends State<LoginScreen> {
         if (responseData.containsKey('data') &&
             responseData['data'].containsKey('accessToken')) {
           final token = responseData['data']['accessToken'];
+          final cafId = responseData['data']['caf_id']; // Extract caf_id
+          final cstmr_nm = responseData['data']['cstmr_nm']; // Extract cstmr_nm
+          final mbl_nu = responseData['data']['mbl_nu']; // Extract mbl_nu
+          // Store cstmr_nm securely
+          await _storage.write(key: 'cstmr_nm', value: cstmr_nm);
+          // Store token securely
+          await _storage.write(key: 'token', value: token);
+          // Store caf_id securely
+          await _storage.write(key: 'caf_id', value: cafId.toString());
+          // Store mbl_nu securely
+          await _storage.write(key: 'mbl_nu', value: mbl_nu.toString());
+          // Navigate to home page
           Navigator.of(context)
               .pushReplacement(MaterialPageRoute(builder: (context) {
             return HomePage();
           }));
-          // Save token securely
-          await _storage.write(key: 'token', value: token);
-          // Navigate to next screen or perform other actions
         } else {
           // Handle invalid credentials
         }

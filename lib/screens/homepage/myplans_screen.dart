@@ -1,4 +1,5 @@
 import 'package:apsflsubscribes/screens/hsiusage_screen.dart';
+import 'package:apsflsubscribes/utils/pallete.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:percent_indicator/percent_indicator.dart';
@@ -245,8 +246,7 @@ class _MyplanScreenState extends State<MyplanScreen>
                                 ],
                               ),
                               circularStrokeCap: CircularStrokeCap.round,
-                              progressColor:
-                                  const Color.fromARGB(255, 204, 85, 45),
+                              progressColor: Pallete.buttonColor,
                               backgroundColor: Colors.grey[300]!,
                             ),
                           );

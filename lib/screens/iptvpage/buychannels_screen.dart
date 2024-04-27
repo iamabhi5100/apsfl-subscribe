@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class BuyChannelsScreen extends StatefulWidget {
   const BuyChannelsScreen({Key? key}) : super(key: key);
@@ -41,12 +42,19 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
 
   List<Map<String, dynamic>> _cartItems = [];
 
+  late int currentPlanId; // Declare a variable to store the current plan ID
+
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
     _fetchData();
     _tabController = TabController(length: 3, vsync: this);
+    // Initialize currentPlanId with a default value
+    currentPlanId = -1;
+
+    // Call _fetchCurrentPlanId() to get the current plan ID
+    _fetchCurrentPlanId();
   }
 
   @override
@@ -68,6 +76,16 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
     });
   }
 
+  Future<void> _fetchCurrentPlanId() async {
+    final storage = FlutterSecureStorage();
+    final storedPlanId = await storage.read(key: 'current_plan_id');
+    print('this is currentPlanId before $currentPlanId');
+    setState(() {
+      currentPlanId = int.tryParse(storedPlanId ?? '') ?? 0;
+      print('this is currentPlanId after $currentPlanId');
+    });
+  }
+
   Future<void> _fetchData() async {
     if (_isLoading) return;
 
@@ -80,13 +98,13 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
 
     final Map<String, String> headers = {
       'x-access-token':
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyIwIjp7ImNhZl9pZCI6MjAwMTIzNzE3LCJreWMiOiJObyIsIm1ibF9udSI6NzY3NTgzMTAxMSwiY3N0bXJfbm0iOiJzaXZlIGt1bWFyIn0sImFwcCI6bnVsbCwiaWF0IjoxNzEzNjEzMTI1fQ.yZoBPp-SyDVjmQOByN_5L4Zo_7AidiszeJ-Wita9Vgg',
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyIwIjp7ImNhZl9pZCI6MjAwMjQzMDg1LCJreWMiOiJObyIsIm1ibF9udSI6OTY1MjY2NTQ0OCwiY3N0bXJfbm0iOiJhcHNmbCJ9LCJhcHAiOm51bGwsImlhdCI6MTcxNDA0OTc1MH0.RF5WUC3F5im5_rgoqEZO_StIy92yhMUh-JAgn3kfbOM',
       'Content-Type': 'application/json'
     };
 
     final Map<String, dynamic> requestBody = {
       "app_type": "Customer",
-      "caf_id": "200242278",
+      "caf_id": "200243085",
       "device_id": "OPM1.171019.026",
       "device_name": "vivovivo+1811",
       "version_code": 26
@@ -108,13 +126,15 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
           responseData['data']['vod_packs'] ?? [];
       final List<dynamic> ExistingPackages =
           responseData['data']['existngpckgsdtls'] ?? [];
+
+      print(responseData);
       setState(() {
         _dataAlacarte.addAll(Alacartedata.cast<Map<String, dynamic>>());
         _dataHsi.addAll(Hsidata.cast<Map<String, dynamic>>());
         _dataFirstShow.addAll(FirstShowdata.cast<Map<String, dynamic>>());
         _dataExistingPckge
             .addAll(ExistingPackages.cast<Map<String, dynamic>>());
-        print(_dataExistingPckge);
+
         // Initialize the checkbox lists for each tab
         _isCheckedList =
             List<bool>.filled(_dataAlacarte.length, false, growable: true);
@@ -350,7 +370,7 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
                                         trailing: showCheckbox
                                             ? Checkbox(
                                                 value: isChecked,
-                                                side: BorderSide(
+                                                side: const BorderSide(
                                                     color: Colors.black),
                                                 checkColor: Colors.white,
                                                 onChanged: (value) {
@@ -537,20 +557,31 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
                         ? _dataAlacarte[index - 1]
                         : _filteredDataAlacarte[index - 1];
 
-                    // Conditionally decide whether to hide checkbox based on "home_premium" and "home_essential" values
-                    final bool hideCheckbox = package['home_premium'] == 1 ||
-                        package['home_essential'] == 1;
+                    // Determine whether to hide checkbox based on current plan ID and package properties
+                    bool hideCheckbox = false;
+                    print(
+                        'this is currentplanid before if else $currentPlanId');
+                    if (currentPlanId == 3000106) {
+                      print('inside premium');
+                      // If current plan ID is 3000106, hide checkbox if package has 'home_premium' property set to 1
+                      hideCheckbox = package['home_premium'] == 1;
+                    } else if (currentPlanId == 3000107) {
+                      print('inside essential');
+                      // If current plan ID is 3000107, hide checkbox if package has 'home_essential' property set to 1
+                      hideCheckbox = package['home_essential'] == 1;
+                    }
 
                     return Padding(
                       padding: const EdgeInsets.all(4.0),
                       child: Column(
                         children: [
+                          // Only show checkbox if hideCheckbox is false
                           Card(
                             color: const Color.fromARGB(255, 251, 242, 245),
                             child: ListTile(
-                              leading: hideCheckbox
-                                  ? null
-                                  : Checkbox(
+                              // Only show checkbox if hideCheckbox is false
+                              leading: !hideCheckbox
+                                  ? Checkbox(
                                       value: _filteredDataAlacarte.isEmpty
                                           ? _isCheckedList[index - 1] ?? false
                                           : _isCheckedList[index - 1] ?? false,
@@ -566,7 +597,8 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
                                           }
                                         });
                                       },
-                                    ),
+                                    )
+                                  : null,
                               title: Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
@@ -878,6 +910,8 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
             ),
     );
   }
+
+  // Function to fetch the current plan ID from secure storage
 }
 
 Widget _buildLoadingIndicator() {

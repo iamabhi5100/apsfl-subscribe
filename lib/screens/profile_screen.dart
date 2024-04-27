@@ -17,6 +17,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  late bool _isLoading = false;
   List<Map<String, dynamic>> _subscriberApploginDtlsData = [];
 
   @override
@@ -26,17 +27,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _subscriberApploginDtls() async {
+    if (_isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
     const String apiUrl = 'http://bss.apsfl.co.in/apiv1/subscriberApploginDtls';
 
+    final storage = FlutterSecureStorage();
+    final String? token = await storage.read(key: 'token');
+    final String? cafId = await storage.read(key: 'caf_id');
+
+    if (token == null || cafId == null) {
+      setState(() {
+        _isLoading = false;
+      });
+      // Handle the case where token or caf_id is not available
+      return;
+    }
+
     final Map<String, String> headers = {
-      'x-access-token':
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjEifQ.eyIwIjp7ImNhZl9pZCI6MjAwMTIzNzE3LCJreWMiOiJObyIsIm1ibF9udSI6Nzk4OTkyNTc2MSwiY3N0bXJfbm0iOiJzaXZlIGt1bWFyIn0sImFwcCI6IiIsImlhdCI6MTcwNjU5OTM3OCwiZXhwIjoxNzA2NjEwMTc4LCJhdWQiOiJodHRwOi8vZHJlYW1zdGVwLmNvbSIsImlzcyI6IkRyZWFtc3RlcCIsInN1YiI6InVuZGVmaW5lZF91c2VyIiwianRpIjoiMSJ9.8O88U3mzwKQvTsVlzC6kYPmy6f6DTgrrIrNi3uO4yLA',
+      'x-access-token': token,
       'Content-Type': 'application/json'
     };
 
     final Map<String, dynamic> requestBody = {
       "app_type": "Customer",
-      "caf_id": 200123717,
+      "caf_id": int.parse(cafId),
       "device_id": "OPM1.171019.026",
       "device_type": "vivovivo+1811"
     };
@@ -444,9 +461,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       final _storage = FlutterSecureStorage();
                       await _storage.delete(
                           key: 'token'); // Remove token from storage
+                      await _storage.delete(
+                          key: 'caf_id'); // Remove token from storage
+                      await _storage.delete(
+                          key: 'cstmr_nm'); // Remove token from storage
+                      await _storage.delete(
+                          key: 'mbl_nu'); // Remove token from storage
                       Navigator.of(context).pushReplacement(
                           MaterialPageRoute(builder: (context) {
-                        return LoginScreen();
+                        return const LoginScreen();
                       }));
                     },
                     child: const Text(

@@ -5,39 +5,53 @@ import 'package:apsflsubscribes/utils/pallete.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:fluttertoast/fluttertoast.dart';
 
-class Complaints extends StatefulWidget {
-  const Complaints({Key? key}) : super(key: key);
+class DropdownMenuExample extends StatefulWidget {
+  const DropdownMenuExample({Key? key}) : super(key: key);
 
   @override
-  _ComplaintsState createState() => _ComplaintsState();
+  State<DropdownMenuExample> createState() => _DropdownMenuExampleState();
 }
 
-class _ComplaintsState extends State<Complaints> {
-  List<Map<String, dynamic>> _complaintsList = [];
+class _DropdownMenuExampleState extends State<DropdownMenuExample> {
+  late bool _isLoading = false;
+  String dropdownValue = '';
+  List<Map<String, dynamic>> _complaintsCat = [];
 
   @override
   void initState() {
     super.initState();
-    _fetchComplaints();
+
+    _get_comp_cat();
   }
 
-  // --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-  Future<void> _fetchComplaints() async {
+  Future<void> _get_comp_cat() async {
     const String apiUrl =
-        'http://bss.apsfl.co.in/apiv1/subscriberApp/cstmr_complaint_info';
+        'http://bss.apsfl.co.in/apiv1/subscriberApp/get_comp_cat';
+
+    final storage = FlutterSecureStorage();
+    final String? token = await storage.read(key: 'token');
+    final String? cafId = await storage.read(key: 'caf_id');
+
+    if (token == null || cafId == null) {
+      setState(() {
+        _isLoading = false;
+      });
+      // Handle the case where token or caf_id is not available
+      return;
+    }
 
     final Map<String, String> headers = {
-      'x-access-token':
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjEifQ.eyIwIjp7ImNhZl9pZCI6MjAwMTIzNzE3LCJreWMiOiJObyIsIm1ibF9udSI6Nzk4OTkyNTc2MSwiY3N0bXJfbm0iOiJzaXZlIGt1bWFyIn0sImFwcCI6IiIsImlhdCI6MTcwNjU5OTM3OCwiZXhwIjoxNzA2NjEwMTc4LCJhdWQiOiJodHRwOi8vZHJlYW1zdGVwLmNvbSIsImlzcyI6IkRyZWFtc3RlcCIsInN1YiI6InVuZGVmaW5lZF91c2VyIiwianRpIjoiMSJ9.8O88U3mzwKQvTsVlzC6kYPmy6f6DTgrrIrNi3uO4yLA',
+      'x-access-token': token,
       'Content-Type': 'application/json'
     };
 
     final Map<String, dynamic> requestBody = {
       "app_type": "Customer",
-      "caf_id": 200123717,
+      "caf_id": int.parse(cafId), // Parse caf_id to int if needed
       "device_id": "OPM1.171019.026",
       "device_type": "vivovivo+1811"
     };
@@ -52,7 +66,121 @@ class _ComplaintsState extends State<Complaints> {
       final Map<String, dynamic> responseData = json.decode(response.body);
       final List<dynamic> data = responseData['data'] ?? [];
       setState(() {
+        _complaintsCat = List<Map<String, dynamic>>.from(data);
+        // Add default option at the beginning of the list
+        _complaintsCat
+            .insert(0, {'category': 'Select Complaint Category', 'id': null});
+        dropdownValue =
+            _complaintsCat.isNotEmpty ? _complaintsCat.first['category'] : '';
+      });
+    } else {
+      throw Exception('Failed to fetch complaints');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
+      child: DropdownMenu<String>(
+        width: MediaQuery.of(context).size.width * 0.9,
+        initialSelection: dropdownValue,
+        inputDecorationTheme: const InputDecorationTheme(
+          border: OutlineInputBorder(
+            borderSide: BorderSide(width: 4, color: Colors.black),
+            borderRadius: BorderRadius.all(
+              Radius.circular(40),
+            ),
+          ),
+        ),
+        onSelected: (String? value) {
+          setState(() {
+            dropdownValue = value!;
+          });
+        },
+        dropdownMenuEntries: _complaintsCat
+            .map<DropdownMenuEntry<String>>((Map<String, dynamic> category) {
+          return DropdownMenuEntry<String>(
+              value: category['category'], label: category['category']);
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class Complaints extends StatefulWidget {
+  const Complaints({Key? key}) : super(key: key);
+
+  @override
+  _ComplaintsState createState() => _ComplaintsState();
+}
+
+class _ComplaintsState extends State<Complaints> {
+  List<Map<String, dynamic>> _complaintsList = [];
+  late bool _isLoading = false;
+  String? lmoName;
+  String? cafIds;
+  String? contactNo;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchComplaints();
+  }
+
+  // --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+  Future<void> _fetchComplaints() async {
+    const String apiUrl =
+        'http://bss.apsfl.co.in/apiv1/subscriberApp/cstmr_complaint_info';
+
+    final storage = FlutterSecureStorage();
+    final String? token = await storage.read(key: 'token');
+    final String? cstmr_nm = await storage.read(key: 'cstmr_nm');
+    final String? cafId = await storage.read(key: 'caf_id');
+    final String? mbl_nu = await storage.read(key: 'mbl_nu');
+
+    if (token == null || cafId == null) {
+      setState(() {
+        _isLoading = false;
+      });
+      // Handle the case where token or caf_id is not available
+      return;
+    }
+
+    final Map<String, String> headers = {
+      'x-access-token': token,
+      'Content-Type': 'application/json'
+    };
+
+    final Map<String, dynamic> requestBody = {
+      "app_type": "Customer",
+      "caf_id": int.parse(cafId), // Parse caf_id to int if needed
+      "device_id": "OPM1.171019.026",
+      "device_type": "vivovivo+1811"
+    };
+
+    final http.Response response = await http.post(
+      Uri.parse(apiUrl),
+      headers: headers,
+      body: json.encode(requestBody),
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> responseData = json.decode(response.body);
+      final List<dynamic> data = responseData['data'] ?? [];
+      print('this is complaint screen $data');
+      if (data.isEmpty) {
+        _showToastNotification();
+      }
+      setState(() {
         _complaintsList = List<Map<String, dynamic>>.from(data);
+        lmoName = cstmr_nm;
+        cafIds = cafId;
+        contactNo = mbl_nu;
+        print('this is lmo name:- $lmoName');
+        print('this is cafIds:- $cafIds');
+        print('this is contactNo:- $contactNo');
       });
     } else {
       throw Exception('Failed to fetch complaints');
@@ -108,9 +236,31 @@ class _ComplaintsState extends State<Complaints> {
           body: TabBarView(
             children: [
               ListView.builder(
-                itemCount: _complaintsList.length,
+                itemCount: _complaintsList.isEmpty ? 1 : _complaintsList.length,
                 itemBuilder: (context, index) {
+                  if (_complaintsList.isEmpty) {
+                    return SizedBox(
+                      height: MediaQuery.of(context).size.height * 0.9,
+                      // color: Colors.amber,
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'No history found',
+                            style: TextStyle(
+                              fontFamily: 'Cera-Bold',
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
                   final Map<String, dynamic> complaint = _complaintsList[index];
+                  print(
+                      'this is inside listview builder of complaintlist $complaint');
                   return ListTile(
                     // title: Text('Complaint ID: ${complaint['complaint_id']}'),
                     subtitle: Card(
@@ -199,205 +349,196 @@ class _ComplaintsState extends State<Complaints> {
                 },
               ),
               // const Icon(Icons.help_center),
-              ListView.builder(
-                itemCount: 1,
-                itemBuilder: (context, index) {
-                  final Map<String, dynamic> complaint = _complaintsList[index];
-                  return Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Column(
+              Padding(
+                padding: const EdgeInsets.all(4),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Card(
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 0,
+                              child: Container(
+                                // color: Colors.amber,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                ),
+                                child: const Column(
+                                  // mainAxisAlignment: MainAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Name',
+                                      style: TextStyle(
+                                        fontFamily: 'Cera-Bold',
+                                      ),
+                                    ),
+                                    Text(
+                                      'Mobile',
+                                      style: TextStyle(
+                                        fontFamily: 'Cera-Bold',
+                                      ),
+                                    ),
+                                    Text(
+                                      'CAF ID',
+                                      style: TextStyle(
+                                        fontFamily: 'Cera-Bold',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 1,
+                              child: Container(
+                                // color: Colors.blue,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 40,
+                                ),
+                                child: const Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      ':',
+                                      style: TextStyle(
+                                        fontFamily: 'Cera-Bold',
+                                      ),
+                                    ),
+                                    Text(
+                                      ':',
+                                      style: TextStyle(
+                                        fontFamily: 'Cera-Bold',
+                                      ),
+                                    ),
+                                    Text(
+                                      ':',
+                                      style: TextStyle(
+                                        fontFamily: 'Cera-Bold',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Container(
+                                // color: Colors.amber,
+                                padding: const EdgeInsets.all(8.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '$lmoName',
+                                      style: const TextStyle(
+                                        fontFamily: 'Cera-Bold',
+                                      ),
+                                    ),
+                                    Text(
+                                      '$cafIds',
+                                      style: const TextStyle(
+                                        fontFamily: 'Cera-Bold',
+                                      ),
+                                    ),
+                                    Text(
+                                      '$contactNo',
+                                      style: const TextStyle(
+                                        fontFamily: 'Cera-Bold',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Card(
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  flex: 0,
-                                  child: Container(
-                                    // color: Colors.amber,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 20,
-                                    ),
-                                    child: const Column(
-                                      // mainAxisAlignment: MainAxisAlignment.start,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Name',
-                                          style: TextStyle(
-                                            fontFamily: 'Cera-Bold',
-                                          ),
-                                        ),
-                                        Text(
-                                          'Mobile',
-                                          style: TextStyle(
-                                            fontFamily: 'Cera-Bold',
-                                          ),
-                                        ),
-                                        Text(
-                                          'CAF ID',
-                                          style: TextStyle(
-                                            fontFamily: 'Cera-Bold',
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  flex: 1,
-                                  child: Container(
-                                    // color: Colors.blue,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 40,
-                                    ),
-                                    child: const Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          ':',
-                                          style: TextStyle(
-                                            fontFamily: 'Cera-Bold',
-                                          ),
-                                        ),
-                                        Text(
-                                          ':',
-                                          style: TextStyle(
-                                            fontFamily: 'Cera-Bold',
-                                          ),
-                                        ),
-                                        Text(
-                                          ':',
-                                          style: TextStyle(
-                                            fontFamily: 'Cera-Bold',
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  flex: 2,
-                                  child: Container(
-                                    // color: Colors.amber,
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '${complaint['first_name']}',
-                                          style: TextStyle(
-                                            fontFamily: 'Cera-Bold',
-                                          ),
-                                        ),
-                                        Text(
-                                          '${complaint['cntct_mble1_nu']}',
-                                          style: TextStyle(
-                                            fontFamily: 'Cera-Bold',
-                                          ),
-                                        ),
-                                        Text(
-                                          '${complaint['caf_nu']}  ',
-                                          style: TextStyle(
-                                            fontFamily: 'Cera-Bold',
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
+                        const DropdownMenuExample(),
+                        const SizedBox(
+                          height: 20,
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 20.0,
+                          ),
+                          child: Text(
+                            'Complaint Message',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontFamily: 'Cera-Bold',
+                              fontSize: 18,
                             ),
                           ),
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const DropdownMenuExample(),
-                            const SizedBox(
-                              height: 20,
-                            ),
-                            const Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20.0,
-                              ),
-                              child: Text(
-                                'Complaint Message',
-                                style: TextStyle(
-                                  color: Colors.black,
-                                  fontFamily: 'Cera-Bold',
-                                  fontSize: 18,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(
-                              height: 20,
-                            ),
-                            Container(
-                              // height: 60, // Adjust the height as needed
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20.0,
-                              ),
-                              child: const TextField(
-                                decoration: InputDecoration(
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.all(8.0),
-                                  border: OutlineInputBorder(),
-                                  labelText: 'Enter Message....',
-                                  labelStyle: TextStyle(
-                                    fontFamily: 'Cera-Bold',
-                                    fontSize: 16,
-                                  ),
-                                ),
+                        const SizedBox(
+                          height: 20,
+                        ),
+                        Container(
+                          // height: 60, // Adjust the height as needed
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20.0,
+                          ),
+                          child: const TextField(
+                            decoration: InputDecoration(
+                              isDense: true,
+                              contentPadding: EdgeInsets.all(8.0),
+                              border: OutlineInputBorder(),
+                              labelText: 'Enter Message....',
+                              labelStyle: TextStyle(
+                                fontFamily: 'Cera-Bold',
+                                fontSize: 16,
                               ),
                             ),
-                            const SizedBox(
-                              height: 20,
-                            ),
-                            Align(
-                              alignment: Alignment.center,
-                              child: SizedBox(
-                                width: 200,
-                                child: ElevatedButton(
-                                  onPressed: () {},
-                                  child: Text(
-                                    'Submit',
-                                    style: const TextStyle(
-                                      fontFamily: 'Cera-Bold',
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                      backgroundColor: Pallete.buttonColor),
-                                ),
-                              ),
-                            ),
-                            TextButton(
+                          ),
+                        ),
+                        const SizedBox(
+                          height: 20,
+                        ),
+                        Align(
+                          alignment: Alignment.center,
+                          child: SizedBox(
+                            width: 200,
+                            child: ElevatedButton(
                               onPressed: () {},
-                              child: const Center(
-                                child: Text(
-                                  'For More Info Contact Us ?',
-                                  style: TextStyle(
-                                    color: Colors.black,
-                                    fontFamily: 'Cera-Bold',
-                                    decoration: TextDecoration.underline,
-                                    fontSize: 14,
-                                  ),
+                              child: Text(
+                                'Submit',
+                                style: const TextStyle(
+                                  fontFamily: 'Cera-Bold',
+                                  color: Colors.white,
+                                  fontSize: 16,
                                 ),
                               ),
-                            )
-                          ],
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: Pallete.buttonColor),
+                            ),
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {},
+                          child: const Center(
+                            child: Text(
+                              'For More Info Contact Us ?',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontFamily: 'Cera-Bold',
+                                decoration: TextDecoration.underline,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
                         )
                       ],
-                    ),
-                  );
-                },
-              ),
+                    )
+                  ],
+                ),
+              )
             ],
           ),
         ),
@@ -406,89 +547,14 @@ class _ComplaintsState extends State<Complaints> {
   }
 }
 
-class DropdownMenuExample extends StatefulWidget {
-  const DropdownMenuExample({Key? key}) : super(key: key);
-
-  @override
-  State<DropdownMenuExample> createState() => _DropdownMenuExampleState();
-}
-
-class _DropdownMenuExampleState extends State<DropdownMenuExample> {
-  String dropdownValue = '';
-  List<Map<String, dynamic>> _complaintsCat = [];
-
-  @override
-  void initState() {
-    super.initState();
-
-    _get_comp_cat();
-  }
-
-  Future<void> _get_comp_cat() async {
-    const String apiUrl =
-        'http://bss.apsfl.co.in/apiv1/subscriberApp/get_comp_cat';
-
-    final Map<String, String> headers = {
-      'x-access-token':
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjEifQ.eyIwIjp7ImNhZl9pZCI6MjAwMTIzNzE3LCJreWMiOiJObyIsIm1ibF9udSI6Nzk4OTkyNTc2MSwiY3N0bXJfbm0iOiJzaXZlIGt1bWFyIn0sImFwcCI6IiIsImlhdCI6MTcwNjU5OTM3OCwiZXhwIjoxNzA2NjEwMTc4LCJhdWQiOiJodHRwOi8vZHJlYW1zdGVwLmNvbSIsImlzcyI6IkRyZWFtc3RlcCIsInN1YiI6InVuZGVmaW5lZF91c2VyIiwianRpIjoiMSJ9.8O88U3mzwKQvTsVlzC6kYPmy6f6DTgrrIrNi3uO4yLA',
-      'Content-Type': 'application/json'
-    };
-
-    final Map<String, dynamic> requestBody = {
-      "app_type": "Customer",
-      "caf_id": 200123717,
-      "device_id": "OPM1.171019.026",
-      "device_type": "vivovivo+1811"
-    };
-
-    final http.Response response = await http.post(
-      Uri.parse(apiUrl),
-      headers: headers,
-      body: json.encode(requestBody),
-    );
-
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> responseData = json.decode(response.body);
-      final List<dynamic> data = responseData['data'] ?? [];
-      setState(() {
-        _complaintsCat = List<Map<String, dynamic>>.from(data);
-        // Add default option at the beginning of the list
-        _complaintsCat
-            .insert(0, {'category': 'Select Complaint Category', 'id': null});
-        dropdownValue =
-            _complaintsCat.isNotEmpty ? _complaintsCat.first['category'] : '';
-      });
-    } else {
-      throw Exception('Failed to fetch complaints');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10),
-      child: DropdownMenu<String>(
-        width: MediaQuery.of(context).size.width * 0.9,
-        initialSelection: dropdownValue,
-        inputDecorationTheme: const InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderSide: BorderSide(width: 4, color: Colors.black),
-            borderRadius: BorderRadius.all(
-              Radius.circular(40),
-            ),
-          ),
-        ),
-        onSelected: (String? value) {
-          setState(() {
-            dropdownValue = value!;
-          });
-        },
-        dropdownMenuEntries: _complaintsCat
-            .map<DropdownMenuEntry<String>>((Map<String, dynamic> category) {
-          return DropdownMenuEntry<String>(
-              value: category['category'], label: category['category']);
-        }).toList(),
-      ),
-    );
-  }
+void _showToastNotification() {
+  Fluttertoast.showToast(
+    msg: "No History Found",
+    toastLength: Toast.LENGTH_SHORT,
+    gravity: ToastGravity.BOTTOM,
+    timeInSecForIosWeb: 1,
+    backgroundColor: Colors.red,
+    textColor: Colors.white,
+    fontSize: 16.0,
+  );
 }

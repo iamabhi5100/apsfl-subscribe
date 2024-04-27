@@ -141,10 +141,16 @@ class _DrawerNavigationScreenState extends State<DrawerNavigationScreen> {
             ),
             onTap: () async {
               final _storage = FlutterSecureStorage();
+
               await _storage.delete(key: 'token'); // Remove token from storage
+              await _storage.delete(key: 'caf_id'); // Remove token from storage
+              await _storage.delete(
+                  key: 'cstmr_nm'); // Remove token from storage
+              await _storage.delete(key: 'mbl_nu'); // Remove token from storage
+
               Navigator.of(context)
                   .pushReplacement(MaterialPageRoute(builder: (context) {
-                return LoginScreen();
+                return const LoginScreen();
               }));
             },
           ),
