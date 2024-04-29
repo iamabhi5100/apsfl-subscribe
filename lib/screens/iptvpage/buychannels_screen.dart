@@ -21,9 +21,11 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
     with TickerProviderStateMixin {
   late final TabController _tabController;
 
-  final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _firstShowSearchController =
+  final TextEditingController _searchControllerAlacate =
       TextEditingController();
+  final TextEditingController _searchControllerFirstShow =
+      TextEditingController();
+
   List<Map<String, dynamic>> _filteredDataAlacarte = [];
   List<Map<String, dynamic>> _filteredDataFirstShow = [];
 
@@ -55,6 +57,13 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
 
     // Call _fetchCurrentPlanId() to get the current plan ID
     _fetchCurrentPlanId();
+
+    _filteredDataAlacarte = _dataAlacarte; // Initialize with all items
+    _searchControllerAlacate.addListener(
+        _filterItemsAlacate); // Listen for changes in the search bar
+    _searchControllerFirstShow.addListener(
+        _filterItemsFirstShow); // Listen for changes in the search bar
+    _filteredDataFirstShow = _dataFirstShow;
   }
 
   @override
@@ -65,14 +74,23 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
     super.dispose();
   }
 
-  // Function to handle search text changes
-  void _onSearchChanged() {
+  void _filterItemsAlacate() {
+    final searchText = _searchControllerAlacate.text.toLowerCase();
     setState(() {
-      _filteredDataAlacarte = _dataAlacarte
-          .where((package) => package['package_name']
-              .toLowerCase()
-              .contains(_searchController.text.toLowerCase()))
-          .toList();
+      _filteredDataAlacarte = _dataAlacarte.where((package) {
+        final packageName = package['package_name'].toString().toLowerCase();
+        return packageName.contains(searchText);
+      }).toList();
+    });
+  }
+
+  void _filterItemsFirstShow() {
+    final searchText = _searchControllerFirstShow.text.toLowerCase();
+    setState(() {
+      _filteredDataFirstShow = _dataFirstShow.where((package) {
+        final packageName = package['package_name'].toString().toLowerCase();
+        return packageName.contains(searchText);
+      }).toList();
     });
   }
 
@@ -93,18 +111,28 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
       _isLoading = true;
     });
 
-    const apiUrl =
-        'http://bssuat.apsfl.co.in/apiv1/subscriberApp/cstmr_packages';
+    const apiUrl = 'http://bss.apsfl.co.in/apiv1/subscriberApp/cstmr_packages';
+
+    final storage = FlutterSecureStorage();
+    final String? token = await storage.read(key: 'token');
+    final String? cafId = await storage.read(key: 'caf_id');
+
+    if (token == null || cafId == null) {
+      setState(() {
+        _isLoading = false;
+      });
+      // Handle the case where token or caf_id is not available
+      return;
+    }
 
     final Map<String, String> headers = {
-      'x-access-token':
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyIwIjp7ImNhZl9pZCI6MjAwMjQzMDg1LCJreWMiOiJObyIsIm1ibF9udSI6OTY1MjY2NTQ0OCwiY3N0bXJfbm0iOiJhcHNmbCJ9LCJhcHAiOm51bGwsImlhdCI6MTcxNDA0OTc1MH0.RF5WUC3F5im5_rgoqEZO_StIy92yhMUh-JAgn3kfbOM',
+      'x-access-token': token,
       'Content-Type': 'application/json'
     };
 
     final Map<String, dynamic> requestBody = {
       "app_type": "Customer",
-      "caf_id": "200243085",
+      "caf_id": int.parse(cafId), // Parse caf_id to int if needed
       "device_id": "OPM1.171019.026",
       "device_name": "vivovivo+1811",
       "version_code": 26
@@ -504,166 +532,155 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
           : TabBarView(
               controller: _tabController,
               children: <Widget>[
-                ListView.builder(
-                  controller: _scrollController,
-                  itemCount: _filteredDataAlacarte.isEmpty
-                      ? _dataAlacarte.length +
-                          1 // Show default itemCount if search query is empty
-                      : _filteredDataAlacarte.length +
-                          1, // Show filtered itemCount if search query is not empty
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      // Display SearchBar as the first item
-                      return Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: SearchBar(
-                          controller: _searchController,
-                          hintText: 'Search packages',
-                          leading: const Icon(Icons.search),
-                          trailing: [
-                            IconButton(
-                              icon: const Icon(Icons.brightness_6),
-                              onPressed: () {
-                                // Add action for toggling brightness
-                              },
-                            ),
-                          ],
-                          onChanged: (value) {
-                            setState(() {
-                              // Filter the list of packages based on the entered text value
-                              _filteredDataAlacarte = _dataAlacarte
-                                  .where((package) => package['package_name']
-                                      .toLowerCase()
-                                      .contains(value.toLowerCase()))
-                                  .toList();
-                            });
-                          },
-                        ),
-                      );
-                    } else if (index ==
-                        (_filteredDataAlacarte.isEmpty
-                            ? _dataAlacarte.length
-                            : _filteredDataAlacarte.length)) {
-                      // Handle loading indicator
-                      if (_isLoading) {
-                        return Center(child: CircularProgressIndicator());
-                      } else {
-                        return Container(); // Placeholder while loading more data
-                      }
-                    }
-
-                    // Build your list items based on search query
-                    final package = _filteredDataAlacarte.isEmpty
-                        ? _dataAlacarte[index - 1]
-                        : _filteredDataAlacarte[index - 1];
-
-                    // Determine whether to hide checkbox based on current plan ID and package properties
-                    bool hideCheckbox = false;
-                    print(
-                        'this is currentplanid before if else $currentPlanId');
-                    if (currentPlanId == 3000106) {
-                      print('inside premium');
-                      // If current plan ID is 3000106, hide checkbox if package has 'home_premium' property set to 1
-                      hideCheckbox = package['home_premium'] == 1;
-                    } else if (currentPlanId == 3000107) {
-                      print('inside essential');
-                      // If current plan ID is 3000107, hide checkbox if package has 'home_essential' property set to 1
-                      hideCheckbox = package['home_essential'] == 1;
-                    }
-
-                    return Padding(
-                      padding: const EdgeInsets.all(4.0),
-                      child: Column(
-                        children: [
-                          // Only show checkbox if hideCheckbox is false
-                          Card(
-                            color: const Color.fromARGB(255, 251, 242, 245),
-                            child: ListTile(
-                              // Only show checkbox if hideCheckbox is false
-                              leading: !hideCheckbox
-                                  ? Checkbox(
-                                      value: _filteredDataAlacarte.isEmpty
-                                          ? _isCheckedList[index - 1] ?? false
-                                          : _isCheckedList[index - 1] ?? false,
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _isCheckedList[index - 1] =
-                                              value ?? false;
-                                          if (value ?? false) {
-                                            _addToCart(package);
-                                          } else {
-                                            _removeFromCart(
-                                                package['package_id']);
-                                          }
-                                        });
-                                      },
-                                    )
-                                  : null,
-                              title: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Channel / Package Name',
-                                          style: TextStyle(
-                                            color: Colors.black,
-                                            fontFamily: 'Cera-Bold',
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                        Text(
-                                          package['package_name'] ?? '',
-                                          style: const TextStyle(
-                                            color: Colors.black,
-                                            fontFamily: 'Cera-Bold',
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Container(
-                                    width:
-                                        MediaQuery.of(context).size.width * 0.2,
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'Price',
-                                          style: TextStyle(
-                                            color: Colors.black,
-                                            fontFamily: 'Cera-Bold',
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                        Text(
-                                          ' ${package['ttl_cst']} ',
-                                          style: const TextStyle(
-                                            color: Colors.black,
-                                            fontFamily: 'Cera-Bold',
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: SizedBox(
+                        height: 50,
+                        child: TextField(
+                          controller: _searchControllerAlacate,
+                          decoration: InputDecoration(
+                            hintText: 'Search Channels',
+                            prefixIcon: const Icon(Icons.search),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20.0),
                             ),
                           ),
-                        ],
+                        ),
                       ),
-                    );
-                  },
+                    ),
+                    Expanded(
+                      child: // Adjust the logic inside the itemBuilder method of ListView.builder
+                          ListView.builder(
+                        controller: _scrollController,
+                        itemCount: _filteredDataAlacarte.isEmpty
+                            ? _dataAlacarte.length +
+                                1 // Show default itemCount if search query is empty
+                            : _filteredDataAlacarte.length +
+                                1, // Show filtered itemCount if search query is not empty
+                        itemBuilder: (context, index) {
+                          if (index == 0) {
+                            // Handle loading indicator or empty search result here
+                            return Container();
+                          }
+
+                          // Adjust index to access correct package data based on search query
+                          final package = _filteredDataAlacarte.isEmpty
+                              ? _dataAlacarte[index - 1]
+                              : _filteredDataAlacarte[index - 1];
+
+                          // Determine whether to hide checkbox based on current plan ID and package properties
+                          bool hideCheckbox = false;
+                          if (currentPlanId == 3000106) {
+                            // If current plan ID is 3000106, hide checkbox if package has 'home_premium' property set to 1
+                            hideCheckbox = package['home_premium'] == 1;
+                          } else if (currentPlanId == 3000107) {
+                            // If current plan ID is 3000107, hide checkbox if package has 'home_essential' property set to 1
+                            hideCheckbox = package['home_essential'] == 1;
+                          }
+
+                          // Check if the package is already in _cartItems
+                          bool isCheckedInitially = _cartItems.any((item) =>
+                              item['package_id'] == package['package_id']);
+
+                          return Padding(
+                            padding: const EdgeInsets.all(4.0),
+                            child: Column(
+                              children: [
+                                // Only show checkbox if hideCheckbox is false
+                                Card(
+                                  color:
+                                      const Color.fromARGB(255, 251, 242, 245),
+                                  child: ListTile(
+                                    // Only show checkbox if hideCheckbox is false
+                                    leading: !hideCheckbox
+                                        ? Checkbox(
+                                            value:
+                                                isCheckedInitially, // Set initial checkbox value based on whether the package is in _cartItems
+                                            onChanged: (value) {
+                                              setState(() {
+                                                if (value ?? false) {
+                                                  _addToCart(package);
+                                                } else {
+                                                  _removeFromCart(
+                                                      package['package_id']);
+                                                }
+                                              });
+                                            },
+                                          )
+                                        : null,
+                                    title: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'Channel / Package Name',
+                                                style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontFamily: 'Cera-Bold',
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                              Text(
+                                                package['package_name'] ?? '',
+                                                style: const TextStyle(
+                                                  color: Colors.black,
+                                                  fontFamily: 'Cera-Bold',
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          width: MediaQuery.of(context)
+                                                  .size
+                                                  .width *
+                                              0.2,
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'Price',
+                                                style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontFamily: 'Cera-Bold',
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                              Text(
+                                                ' ${package['ttl_cst']} ',
+                                                style: const TextStyle(
+                                                  color: Colors.black,
+                                                  fontFamily: 'Cera-Bold',
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
                 ListView.builder(
                   controller: _scrollController,
@@ -769,143 +786,147 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
                     );
                   },
                 ),
-                ListView.builder(
-                  controller: _scrollController,
-                  itemCount: _filteredDataFirstShow.isEmpty
-                      ? _dataFirstShow.length +
-                          1 // Show default itemCount if search query is empty
-                      : _filteredDataFirstShow.length +
-                          1, // Show filtered itemCount if search query is not empty
-                  itemBuilder: (context, index) {
-                    if (index == 0) {
-                      // Display SearchBar as the first item
-                      return Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: SearchBar(
-                          controller: _firstShowSearchController,
-                          hintText: 'Search packages',
-                          leading: const Icon(Icons.search),
-                          // trailing: [
-                          //   IconButton(
-                          //     icon: Icon(Icons.search),
-                          //     onPressed: () {
-                          //       // Add action for toggling brightness
-                          //     },
-                          //   ),
-                          // ],
-                          onChanged: (value) {
-                            setState(() {
-                              // Filter the list of packages based on the entered text value
-                              _filteredDataFirstShow = _dataFirstShow
-                                  .where((package) => package['package_name']
-                                      .toLowerCase()
-                                      .contains(value.toLowerCase()))
-                                  .toList();
-                            });
-                          },
-                        ),
-                      );
-                    } else if (index ==
-                        (_filteredDataFirstShow.isEmpty
-                            ? _dataFirstShow.length
-                            : _filteredDataFirstShow.length)) {
-                      // Handle loading indicator
-                      if (_isLoading) {
-                        return const Center(child: CircularProgressIndicator());
-                      } else {
-                        return Container(); // Placeholder while loading more data
-                      }
-                    }
-
-                    // Build your list items based on search query
-                    final package = _filteredDataFirstShow.isEmpty
-                        ? _dataFirstShow[index - 1]
-                        : _filteredDataFirstShow[index - 1];
-                    return Padding(
-                      padding: const EdgeInsets.all(4.0),
-                      child: Card(
-                        color: const Color.fromARGB(255, 251, 242, 245),
-                        child: CheckboxListTile(
-                          title: Row(
-                            children: [
-                              // Display the image if the URL is not null
-                              package['image_url'] != null
-                                  ?
-                                  // SizedBox(
-                                  //     width: 50,
-                                  //     height: 50,
-                                  //     child:
-                                  //         Image.network(package['image_url'] ?? ''),
-                                  //   )
-                                  Container(
-                                      height: 50,
-                                      width: 50,
-                                      color: Colors.grey, // Placeholder color
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.image_not_supported,
-                                          color: Colors
-                                              .white, // Placeholder icon color
-                                        ),
-                                      ),
-                                    )
-                                  : Container(
-                                      height: 50,
-                                      width: 50,
-                                      color: Colors.grey, // Placeholder color
-                                      child: const Center(
-                                        child: Icon(
-                                          Icons.image_not_supported,
-                                          color: Colors
-                                              .white, // Placeholder icon color
-                                        ),
-                                      ),
-                                    ), // Add a condition to check if image URL is available
-                              const SizedBox(
-                                width: 16,
-                              ), // Add some spacing between image and text
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    package['package_name'] ?? '',
-                                    style: const TextStyle(
-                                      color: Colors.black,
-                                      fontFamily: 'Cera-Bold',
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${package['ttl_cst']}',
-                                    style: const TextStyle(
-                                      color: Colors.black,
-                                      fontFamily: 'Cera-Bold',
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: SizedBox(
+                        height: 50,
+                        child: TextField(
+                          controller: _searchControllerFirstShow,
+                          decoration: InputDecoration(
+                            hintText: 'Search Movies',
+                            prefixIcon: const Icon(Icons.search),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(20.0),
+                            ),
                           ),
-                          value: _filteredDataFirstShow.isEmpty
-                              ? _isCheckedList2[index - 1] ?? false
-                              : _isCheckedList2[index - 1] ?? false,
-                          onChanged: (value) {
-                            setState(() {
-                              _isCheckedList2[index - 1] = value ?? false;
-                              if (value ?? false) {
-                                _addToCart(package);
-                              } else {
-                                _removeFromCart(package['package_id']);
-                              }
-                            });
-                          },
-                          controlAffinity: ListTileControlAffinity.leading,
                         ),
                       ),
-                    );
-                  },
-                )
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        itemCount: _filteredDataFirstShow.isEmpty
+                            ? _dataFirstShow.length +
+                                1 // Show default itemCount if search query is empty
+                            : _filteredDataFirstShow.length +
+                                1, // Show filtered itemCount if search query is not empty
+                        itemBuilder: (context, index) {
+                          if (index == 0) {
+                            // Handle loading indicator or empty search result here
+                            return Container();
+                          }
+
+                          // Determine whether to hide checkbox based on current plan ID and package properties
+                          bool hideCheckbox = false;
+
+                          // Adjust index to access correct package data based on search query
+                          final package = _filteredDataFirstShow.isEmpty
+                              ? _dataFirstShow[index - 1]
+                              : _filteredDataFirstShow[index - 1];
+
+                          // Check if the package is already in _cartItems
+                          bool isCheckedInitially = _cartItems.any((item) =>
+                              item['package_id'] == package['package_id']);
+
+                          return Padding(
+                            padding: const EdgeInsets.all(4.0),
+                            child: Column(
+                              children: [
+                                Card(
+                                  color:
+                                      const Color.fromARGB(255, 251, 242, 245),
+                                  child: ListTile(
+                                    // Only show checkbox if hideCheckbox is false
+                                    leading: !hideCheckbox
+                                        ? Checkbox(
+                                            value:
+                                                isCheckedInitially, // Set initial checkbox value based on whether the package is in _cartItems
+                                            onChanged: (value) {
+                                              setState(() {
+                                                if (value ?? false) {
+                                                  _addToCart(package);
+                                                } else {
+                                                  _removeFromCart(
+                                                      package['package_id']);
+                                                }
+                                              });
+                                            },
+                                          )
+                                        : null,
+                                    title: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'Channel / Package Name',
+                                                style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontFamily: 'Cera-Bold',
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                              Text(
+                                                package['package_name'] ?? '',
+                                                style: const TextStyle(
+                                                  color: Colors.black,
+                                                  fontFamily: 'Cera-Bold',
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        Container(
+                                          width: MediaQuery.of(context)
+                                                  .size
+                                                  .width *
+                                              0.2,
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              const Text(
+                                                'Price',
+                                                style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontFamily: 'Cera-Bold',
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                              Text(
+                                                ' ${package['ttl_cst']} ',
+                                                style: const TextStyle(
+                                                  color: Colors.black,
+                                                  fontFamily: 'Cera-Bold',
+                                                  fontSize: 13,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
     );
@@ -919,3 +940,9 @@ Widget _buildLoadingIndicator() {
     child: CircularProgressIndicator(),
   );
 }
+
+
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ Main Check point ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+// ********************************************************** Alacate and First show ****************************************************************

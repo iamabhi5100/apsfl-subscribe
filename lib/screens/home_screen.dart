@@ -261,12 +261,12 @@ class _HomePageState extends State<HomePage>
                     elevation: 8,
                     child: Container(
                       height: MediaQuery.of(context).size.height * 0.08,
-                      width: MediaQuery.of(context).size.width * 0.5,
-                      decoration: BoxDecoration(
+                      width: MediaQuery.of(context).size.width * 0.8,
+                      decoration: const BoxDecoration(
                         color: Colors.transparent,
-                        border: Border.all(width: 1),
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(10),
+                        // border: Border.all(width: 1),
+                        borderRadius: BorderRadius.all(
+                          Radius.circular(30),
                         ),
                       ),
                       child: const Row(
