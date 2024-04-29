@@ -32,9 +32,12 @@ class CategoriesScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.tv,
-                    color: Colors.black,
+                  SizedBox(
+                    height: 35,
+                    width: 35,
+                    child: Image(
+                      image: AssetImage('assets/images/iptv.png'),
+                    ),
                   ),
                   Text(
                     'IPTV',
@@ -63,9 +66,12 @@ class CategoriesScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.wifi,
-                    color: Colors.black,
+                  SizedBox(
+                    height: 35,
+                    width: 35,
+                    child: Image(
+                      image: AssetImage('assets/images/internet.png'),
+                    ),
                   ),
                   Text(
                     'Internet',
@@ -94,9 +100,12 @@ class CategoriesScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.phone_android,
-                    color: Colors.black,
+                  SizedBox(
+                    height: 35,
+                    width: 35,
+                    child: Image(
+                      image: AssetImage('assets/images/telephone.png'),
+                    ),
                   ),
                   Text(
                     'Telephone',
@@ -125,9 +134,12 @@ class CategoriesScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.newspaper,
-                    color: Colors.black,
+                  SizedBox(
+                    height: 35,
+                    width: 35,
+                    child: Image(
+                      image: AssetImage('assets/images/invoice.png'),
+                    ),
                   ),
                   Text(
                     'Invoice',
