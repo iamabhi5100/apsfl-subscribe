@@ -35,9 +35,7 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
   List<Map<String, dynamic>> _dataHsi = [];
   List<Map<String, dynamic>> _dataFirstShow = [];
   List<Map<String, dynamic>> _dataExistingPckge = [];
-  List<bool> _isCheckedList = [];
-  List<bool> _isCheckedList1 = [];
-  List<bool> _isCheckedList2 = [];
+
   List<bool> _isCheckedList3 = [];
   bool _isLoading = false;
   ScrollController _scrollController = ScrollController();
@@ -155,7 +153,7 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
       final List<dynamic> ExistingPackages =
           responseData['data']['existngpckgsdtls'] ?? [];
 
-      print(responseData);
+      print('this is first showdata $FirstShowdata ');
       setState(() {
         _dataAlacarte.addAll(Alacartedata.cast<Map<String, dynamic>>());
         _dataHsi.addAll(Hsidata.cast<Map<String, dynamic>>());
@@ -163,13 +161,6 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
         _dataExistingPckge
             .addAll(ExistingPackages.cast<Map<String, dynamic>>());
 
-        // Initialize the checkbox lists for each tab
-        _isCheckedList =
-            List<bool>.filled(_dataAlacarte.length, false, growable: true);
-        _isCheckedList1 =
-            List<bool>.filled(_dataHsi.length, false, growable: true);
-        _isCheckedList2 =
-            List<bool>.filled(_dataFirstShow.length, false, growable: true);
         _isCheckedList3 =
             List<bool>.filled(_dataExistingPckge.length, false, growable: true);
         _isLoading = false;
@@ -764,10 +755,8 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
                                 print('Current Checkbox Value: $value');
                                 if (value == true) {
                                   selectedPackageId = package['package_id'];
-                                  _cartItems
-                                      .clear(); // Clear existing cart items
-                                  _cartItems.add(
-                                      package); // Add only the selected package to the cart
+                                  // Add the selected HSI item to _cartItems
+                                  _addToCart(package);
                                   print(
                                       'Package added to cart: ${package['package_name']}');
                                 } else {
@@ -804,125 +793,148 @@ class _BuyChannelsScreenState extends State<BuyChannelsScreen>
                         ),
                       ),
                     ),
-                    Expanded(
-                      child: ListView.builder(
-                        controller: _scrollController,
-                        itemCount: _filteredDataFirstShow.isEmpty
-                            ? _dataFirstShow.length +
-                                1 // Show default itemCount if search query is empty
-                            : _filteredDataFirstShow.length +
-                                1, // Show filtered itemCount if search query is not empty
-                        itemBuilder: (context, index) {
-                          if (index == 0) {
-                            // Handle loading indicator or empty search result here
-                            return Container();
-                          }
+                    Visibility(
+                      visible: _dataFirstShow
+                          .isNotEmpty, // Show the ListView only if _dataFirstShow is not empty
+                      child: Expanded(
+                        child: ListView.builder(
+                          controller: _scrollController,
+                          itemCount: _filteredDataFirstShow.isEmpty
+                              ? _dataFirstShow.length +
+                                  1 // Show default itemCount if search query is empty
+                              : _filteredDataFirstShow.length +
+                                  1, // Show filtered itemCount if search query is not empty
+                          itemBuilder: (context, index) {
+                            if (index == 0) {
+                              // Handle loading indicator or empty search result here
+                              return Container();
+                            }
 
-                          // Determine whether to hide checkbox based on current plan ID and package properties
-                          bool hideCheckbox = false;
+                            // Determine whether to hide checkbox based on current plan ID and package properties
+                            bool hideCheckbox = false;
 
-                          // Adjust index to access correct package data based on search query
-                          final package = _filteredDataFirstShow.isEmpty
-                              ? _dataFirstShow[index - 1]
-                              : _filteredDataFirstShow[index - 1];
+                            // Adjust index to access correct package data based on search query
+                            final package = _filteredDataFirstShow.isEmpty
+                                ? _dataFirstShow[index - 1]
+                                : _filteredDataFirstShow[index - 1];
 
-                          // Check if the package is already in _cartItems
-                          bool isCheckedInitially = _cartItems.any((item) =>
-                              item['package_id'] == package['package_id']);
+                            // Check if the package is already in _cartItems
+                            bool isCheckedInitially = _cartItems.any((item) =>
+                                item['package_id'] == package['package_id']);
 
-                          return Padding(
-                            padding: const EdgeInsets.all(4.0),
-                            child: Column(
-                              children: [
-                                Card(
-                                  color:
-                                      const Color.fromARGB(255, 251, 242, 245),
-                                  child: ListTile(
-                                    // Only show checkbox if hideCheckbox is false
-                                    leading: !hideCheckbox
-                                        ? Checkbox(
-                                            value:
-                                                isCheckedInitially, // Set initial checkbox value based on whether the package is in _cartItems
-                                            onChanged: (value) {
-                                              setState(() {
-                                                if (value ?? false) {
-                                                  _addToCart(package);
-                                                } else {
-                                                  _removeFromCart(
-                                                      package['package_id']);
-                                                }
-                                              });
-                                            },
-                                          )
-                                        : null,
-                                    title: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.start,
-                                            children: [
-                                              const Text(
-                                                'Channel / Package Name',
-                                                style: TextStyle(
-                                                  color: Colors.black,
-                                                  fontFamily: 'Cera-Bold',
-                                                  fontSize: 13,
+                            return Padding(
+                              padding: const EdgeInsets.all(4.0),
+                              child: Column(
+                                children: [
+                                  Card(
+                                    color: const Color.fromARGB(
+                                        255, 251, 242, 245),
+                                    child: ListTile(
+                                      // Only show checkbox if hideCheckbox is false
+                                      leading: !hideCheckbox
+                                          ? Checkbox(
+                                              value:
+                                                  isCheckedInitially, // Set initial checkbox value based on whether the package is in _cartItems
+                                              onChanged: (value) {
+                                                setState(() {
+                                                  if (value ?? false) {
+                                                    _addToCart(package);
+                                                  } else {
+                                                    _removeFromCart(
+                                                        package['package_id']);
+                                                  }
+                                                });
+                                              },
+                                            )
+                                          : null,
+                                      title: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.start,
+                                              children: [
+                                                const Text(
+                                                  'Channel / Package Name',
+                                                  style: TextStyle(
+                                                    color: Colors.black,
+                                                    fontFamily: 'Cera-Bold',
+                                                    fontSize: 13,
+                                                  ),
                                                 ),
-                                              ),
-                                              Text(
-                                                package['package_name'] ?? '',
-                                                style: const TextStyle(
-                                                  color: Colors.black,
-                                                  fontFamily: 'Cera-Bold',
-                                                  fontSize: 13,
+                                                Text(
+                                                  package['package_name'] ?? '',
+                                                  style: const TextStyle(
+                                                    color: Colors.black,
+                                                    fontFamily: 'Cera-Bold',
+                                                    fontSize: 13,
+                                                  ),
                                                 ),
-                                              ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                        Container(
-                                          width: MediaQuery.of(context)
-                                                  .size
-                                                  .width *
-                                              0.2,
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              const Text(
-                                                'Price',
-                                                style: TextStyle(
-                                                  color: Colors.black,
-                                                  fontFamily: 'Cera-Bold',
-                                                  fontSize: 13,
+                                          Container(
+                                            width: MediaQuery.of(context)
+                                                    .size
+                                                    .width *
+                                                0.2,
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                const Text(
+                                                  'Price',
+                                                  style: TextStyle(
+                                                    color: Colors.black,
+                                                    fontFamily: 'Cera-Bold',
+                                                    fontSize: 13,
+                                                  ),
                                                 ),
-                                              ),
-                                              Text(
-                                                ' ${package['ttl_cst']} ',
-                                                style: const TextStyle(
-                                                  color: Colors.black,
-                                                  fontFamily: 'Cera-Bold',
-                                                  fontSize: 13,
+                                                Text(
+                                                  ' ${package['ttl_cst']} ',
+                                                  style: const TextStyle(
+                                                    color: Colors.black,
+                                                    fontFamily: 'Cera-Bold',
+                                                    fontSize: 13,
+                                                  ),
                                                 ),
-                                              ),
-                                            ],
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    Visibility(
+                      visible: _dataFirstShow
+                          .isEmpty, // Show the "Coming Soon" text only if _dataFirstShow is empty
+                      child: SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.6,
+                        width: MediaQuery.of(context).size.width * 1,
+                        child: const Center(
+                          child: Text(
+                            'Coming Soon...',
+                            style: TextStyle(
+                              fontSize: 25,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                              fontFamily: 'Cera-Bold',
                             ),
-                          );
-                        },
+                          ),
+                        ),
                       ),
                     ),
                   ],

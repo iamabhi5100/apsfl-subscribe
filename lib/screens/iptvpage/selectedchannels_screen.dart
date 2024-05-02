@@ -3,8 +3,10 @@ import 'package:apsflsubscribes/screens/iptvpage/buychannels_screen.dart';
 import 'package:apsflsubscribes/screens/paymentpage/paymentselection_screen.dart';
 import 'package:apsflsubscribes/utils/pallete.dart';
 import 'package:flutter/cupertino.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -28,9 +30,13 @@ class SelectedChannelScreen extends StatefulWidget {
 }
 
 class _SelectedChannelScreenState extends State<SelectedChannelScreen> {
-  List<Map<String, dynamic>> _dataAlacarte = [];
+  // Define selectedDropdownValue variable
+  int selectedDropdownValue = 1; // Default value
   bool _isLoading = false;
   dynamic _userData; // Define userData variable
+  // Declare a variable to store the calculated total price
+  late double totalPrice;
+  bool confirmChecked = false;
 
   @override
   void initState() {
@@ -131,8 +137,584 @@ class _SelectedChannelScreenState extends State<SelectedChannelScreen> {
     );
   }
 
+  Widget _buildBottomNavigationBar() {
+    bool allItemsCat2 = widget.cartItems.every((item) => item['cat_id'] == 2);
+    bool hasItemCat3 = widget.cartItems.any((item) => item['cat_id'] == 3);
+
+    if (allItemsCat2) {
+      return Card(
+        elevation: 8,
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          height: allItemsCat2 ? MediaQuery.of(context).size.height * 0.124 : 0,
+          color: const Color.fromARGB(59, 208, 203, 203),
+          child: Column(
+            children: [
+              Container(
+                child: allItemsCat2
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          SizedBox(
+                            width: MediaQuery.of(context).size.width * 0.3,
+                            child: const Text(
+                              'No.of Months',
+                              style: TextStyle(
+                                color: Colors.black,
+                                fontFamily: 'Cera-Bold',
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            width: MediaQuery.of(context).size.width * 0.3,
+                            child: DropdownButton<int>(
+                              items: [1, 3, 6, 12].map((int value) {
+                                return DropdownMenuItem<int>(
+                                  value: value,
+                                  child: Text(
+                                    value.toString(),
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontFamily: 'Cera-Bold',
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (int? newValue) {
+                                setState(() {
+                                  // Handle dropdown value change
+                                  selectedDropdownValue = newValue!;
+                                  // Update state or perform necessary actions
+                                });
+                              },
+                              // Set initial value of dropdown here
+                              value: 1,
+                            ),
+                          ),
+                          // Inside the SizedBox where you want to display the calculated total price
+                          SizedBox(
+                            width: MediaQuery.of(context).size.width * 0.3,
+                            child: Center(
+                              child: Text(
+                                _calculateTotalPrice().toStringAsFixed(2) +
+                                    ' X $selectedDropdownValue',
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontFamily: 'Cera-Bold',
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          )
+                        ],
+                      )
+                    : null,
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  const Icon(
+                    Icons.shopping_cart,
+                    color: Colors.red,
+                    size: 40,
+                  ),
+                  SizedBox(
+                    width: 200,
+                    child: Text(
+                      ' ${(_calculateTotalPrice() * selectedDropdownValue).toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontFamily: 'Cera-Bold',
+                        fontSize: 25,
+                      ),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      // Call _fetchData
+                      await _fetchData();
+                      // Check the response data
+                      if (_isLoading) {
+                        // Show loading indicator
+                        return;
+                      }
+
+                      final successMessage = 'success';
+                      final alreadyExistsMessage = 'Already Package Exits';
+
+                      // Check the response data
+                      if (_userData == successMessage) {
+                        // Store the total price multiplied by the selected dropdown value
+                        String totalPrice =
+                            (_calculateTotalPrice() * selectedDropdownValue)
+                                .toStringAsFixed(2);
+                        await const FlutterSecureStorage()
+                            .write(key: 'totalPrice', value: totalPrice);
+                        // Store the cartItems
+                        String cartItemsJson = jsonEncode(widget.cartItems);
+                        await const FlutterSecureStorage()
+                            .write(key: 'cartItems', value: cartItemsJson);
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              backgroundColor: Pallete.backgroundColor,
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 0, vertical: 0),
+                              title: Container(
+                                color: Pallete.backgroundColor,
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    const Text(
+                                      'Confirmation',
+                                      style: TextStyle(
+                                        fontFamily: 'Cera-Bold',
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      icon: const Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              content: Container(
+                                color: Colors.white,
+                                width: MediaQuery.of(context).size.width *
+                                    2, // Adjust the width here
+                                child: Column(
+                                  // crossAxisAlignment: CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // const SizedBox(height: 10),
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 20.0),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceEvenly,
+                                        children: [
+                                          const Text(
+                                            'Subscription Amount',
+                                            style: TextStyle(
+                                              fontFamily: 'Cera-Bold',
+                                            ),
+                                          ),
+                                          Text(
+                                            totalPrice,
+                                            style: const TextStyle(
+                                              fontFamily: 'Cera-Bold',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Padding(
+                                      padding: const EdgeInsets.all(18.0),
+                                      child: TextField(
+                                        controller: TextEditingController(
+                                            text: 'test@gmail.com'),
+                                        decoration: const InputDecoration(
+                                          labelText: 'Email',
+                                          border: OutlineInputBorder(),
+                                        ),
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 10),
+                                    Container(
+                                      height: 50,
+                                      margin: const EdgeInsets.symmetric(
+                                          horizontal: 30),
+                                      // padding: const EdgeInsets.symmetric(
+                                      //     horizontal: 40, vertical: 10),
+                                      decoration: const BoxDecoration(
+                                        color:
+                                            Color.fromARGB(255, 217, 215, 215),
+                                        borderRadius: BorderRadius.all(
+                                          Radius.circular(40),
+                                        ),
+                                      ),
+                                      child: Center(
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceEvenly,
+                                          children: [
+                                            const Text(
+                                              'Grand Total:',
+                                              style: TextStyle(
+                                                  fontFamily: 'Cera-Bold'),
+                                            ),
+                                            Text(
+                                              totalPrice,
+                                              style: const TextStyle(
+                                                  fontFamily: 'Cera-Bold'),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        // make a checkbox here
+                                        Checkbox(
+                                          value: confirmChecked,
+                                          onChanged: (bool? newValue) {
+                                            setState(() {
+                                              confirmChecked = newValue ??
+                                                  false; // Set default value to false if null
+                                            });
+                                            // Force an immediate rebuild of the UI
+                                            (context as Element)
+                                                .markNeedsBuild();
+                                          },
+                                        ),
+                                        const Text(
+                                          'Are you Sure you want to confirm ?',
+                                          style: TextStyle(
+                                            fontFamily: 'Cera-Bold',
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 10.0),
+                                      child: confirmChecked
+                                          ? ElevatedButton(
+                                              onPressed: () {
+                                                // Perform payment action here
+                                                // For example, you can navigate to a payment screen
+                                                // or trigger a payment API call
+                                                // After payment is completed, close the dialog
+                                                Navigator.of(context).push(
+                                                    MaterialPageRoute(
+                                                        builder: (context) {
+                                                  return const PaymentSelection();
+                                                }));
+                                              },
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    Pallete.buttonColor,
+                                              ),
+                                              child: const Text(
+                                                'CONFIRM',
+                                                style: TextStyle(
+                                                  fontFamily: 'Cera-Bold',
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            )
+                                          : Container(),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      } else if (_userData == alreadyExistsMessage) {
+                        // Show toast notification
+                        _showToastNotification();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                    ),
+                    child: const Text(
+                      'PAY NOW',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'Cera-Bold',
+                        fontSize: 14,
+                      ),
+                    ),
+                  )
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    } else if (hasItemCat3) {
+      // Implement UI for cat_id 3 scenario
+      // You can return a different widget for cat_id 3
+      // For example:
+      return Container(
+        padding: const EdgeInsets.all(20),
+        height: MediaQuery.of(context).size.height * 0.1,
+        color: const Color.fromARGB(59, 208, 203, 203),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                const Icon(
+                  Icons.shopping_cart,
+                  color: Colors.red,
+                  size: 40,
+                ),
+                SizedBox(
+                  width: 200,
+                  child: Text(
+                    _calculateTotalPrice().toStringAsFixed(2),
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontFamily: 'Cera-Bold',
+                      fontSize: 25,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    // Call _fetchData
+                    await _fetchData();
+                    // Check the response data
+                    if (_isLoading) {
+                      // Show loading indicator
+                      return;
+                    }
+
+                    final successMessage = 'success';
+                    final alreadyExistsMessage = 'Already Package Exits';
+
+                    // Check the response data
+                    if (_userData == successMessage) {
+                      // Store the total price multiplied by the selected dropdown value
+                      String totalPrice =
+                          (_calculateTotalPrice() * selectedDropdownValue)
+                              .toStringAsFixed(2);
+                      await const FlutterSecureStorage()
+                          .write(key: 'totalPrice', value: totalPrice);
+                      // Store the cartItems
+                      String cartItemsJson = jsonEncode(widget.cartItems);
+                      await const FlutterSecureStorage()
+                          .write(key: 'cartItems', value: cartItemsJson);
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            backgroundColor: Pallete.backgroundColor,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 0, vertical: 0),
+                            title: Container(
+                              color: Pallete.backgroundColor,
+                              child: Center(
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    const Padding(
+                                      padding: EdgeInsets.only(left: 50),
+                                      child: Text(
+                                        'Confirmation',
+                                        style: TextStyle(
+                                          fontFamily: 'Cera-Bold',
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                      },
+                                      icon: const Icon(
+                                        Icons.close,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            content: Container(
+                              color: Colors.white,
+                              width: MediaQuery.of(context).size.width *
+                                  2, // Adjust the width here
+                              child: Column(
+                                // crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // const SizedBox(height: 10),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 20.0),
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceEvenly,
+                                      children: [
+                                        const Text(
+                                          'Subscription Amount',
+                                          style: TextStyle(
+                                            fontFamily: 'Cera-Bold',
+                                          ),
+                                        ),
+                                        Text(
+                                          totalPrice,
+                                          style: const TextStyle(
+                                            fontFamily: 'Cera-Bold',
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Padding(
+                                    padding: const EdgeInsets.all(18.0),
+                                    child: TextField(
+                                      controller: TextEditingController(
+                                          text: 'test@gmail.com'),
+                                      decoration: const InputDecoration(
+                                        labelText: 'Email',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+
+                                  Container(
+                                    height: 50,
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 30),
+                                    // padding: const EdgeInsets.symmetric(
+                                    //     horizontal: 40, vertical: 10),
+                                    decoration: const BoxDecoration(
+                                      color: Color.fromARGB(255, 217, 215, 215),
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(40),
+                                      ),
+                                    ),
+                                    child: Center(
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceEvenly,
+                                        children: [
+                                          const Text(
+                                            'Grand Total:',
+                                            style: TextStyle(
+                                                fontFamily: 'Cera-Bold'),
+                                          ),
+                                          Text(
+                                            totalPrice,
+                                            style: const TextStyle(
+                                                fontFamily: 'Cera-Bold'),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      // make a checkbox here
+                                      Checkbox(
+                                        value: confirmChecked,
+                                        onChanged: (bool? newValue) {
+                                          setState(() {
+                                            confirmChecked = newValue ??
+                                                false; // Set default value to false if null
+                                          });
+                                          // Force an immediate rebuild of the UI
+                                          (context as Element).markNeedsBuild();
+                                        },
+                                      ),
+                                      const Text(
+                                        'Are you Sure you want to confirm ?',
+                                        style: TextStyle(
+                                          fontFamily: 'Cera-Bold',
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Padding(
+                                    padding:
+                                        const EdgeInsets.only(bottom: 10.0),
+                                    child: confirmChecked
+                                        ? ElevatedButton(
+                                            onPressed: () {
+                                              Navigator.of(context).push(
+                                                  MaterialPageRoute(
+                                                      builder: (context) {
+                                                return const PaymentSelection();
+                                              }));
+                                            },
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  Pallete.buttonColor,
+                                            ),
+                                            child: const Text(
+                                              'CONFIRM',
+                                              style: TextStyle(
+                                                fontFamily: 'Cera-Bold',
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          )
+                                        : Container(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    } else if (_userData == alreadyExistsMessage) {
+                      // Show toast notification
+                      _showToastNotification();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                  ),
+                  child: const Text(
+                    'PAY NOW',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'Cera-Bold',
+                      fontSize: 14,
+                    ),
+                  ),
+                )
+              ],
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Handle other scenarios as needed
+      return Container();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    bool allItemsCat2 = widget.cartItems.every((item) => item['cat_id'] == 2);
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Pallete.backgroundColor,
@@ -156,238 +738,7 @@ class _SelectedChannelScreenState extends State<SelectedChannelScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(20),
-        height: 80,
-        color: const Color.fromARGB(59, 208, 203, 203),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            const Icon(
-              Icons.shopping_cart,
-              color: Colors.red,
-              size: 40,
-            ),
-            SizedBox(
-              width: 200,
-              child: Text(
-                _calculateTotalPrice()
-                    .toStringAsFixed(2), // Display total price
-                style: const TextStyle(
-                  color: Colors.black,
-                  fontFamily: 'Cera-Bold',
-                  fontSize: 25,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                // Call _fetchData
-                await _fetchData();
-                // Check the response data
-                if (_isLoading) {
-                  // Show loading indicator
-                  return;
-                }
-
-                final successMessage = 'success';
-                final alreadyExistsMessage = 'Already Package Exits';
-
-                // Check the response data
-                if (_userData == successMessage) {
-                  showDialog(
-                    context: context,
-                    builder: (BuildContext context) {
-                      return AlertDialog(
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 3, vertical: 10),
-                        title: Container(
-                          decoration: const BoxDecoration(
-                            color: Pallete.backgroundColor,
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(10),
-                              topRight: Radius.circular(10),
-                            ),
-                          ),
-                          child: Center(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                const Padding(
-                                  padding: EdgeInsets.only(left: 50),
-                                  child: Text(
-                                    'Confirmation',
-                                    style: TextStyle(
-                                      fontFamily: 'Cera-Bold',
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  onPressed: () {
-                                    Navigator.of(context).pop();
-                                  },
-                                  icon: const Icon(
-                                    Icons.close,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        content: SizedBox(
-                          width: MediaQuery.of(context).size.width *
-                              2, // Adjust the width here
-                          child: Column(
-                            // crossAxisAlignment: CrossAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // const SizedBox(height: 10),
-                              const Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceEvenly,
-                                children: [
-                                  Text(
-                                    'Subscription Amount',
-                                    style: TextStyle(
-                                      fontFamily: 'Cera-Bold',
-                                    ),
-                                  ),
-                                  Text(
-                                    '₹ 35.40',
-                                    style: TextStyle(
-                                      fontFamily: 'Cera-Bold',
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Padding(
-                                padding: const EdgeInsets.all(18.0),
-                                child: TextField(
-                                  controller: TextEditingController(
-                                      text: 'test@gmail.com'),
-                                  decoration: const InputDecoration(
-                                    labelText: 'Email',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              const Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'Payment Mode',
-                                    style: TextStyle(
-                                      fontFamily: 'Cera-Bold',
-                                    ),
-                                  ),
-                                  SizedBox(width: 20),
-                                  DropdownMenuExample(),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Center(
-                                child: Container(
-                                  margin: const EdgeInsets.symmetric(
-                                      horizontal: 40),
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 40, vertical: 10),
-                                  decoration: const BoxDecoration(
-                                    color: Color.fromARGB(255, 217, 215, 215),
-                                    borderRadius: BorderRadius.all(
-                                      Radius.circular(40),
-                                    ),
-                                  ),
-                                  child: const Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceEvenly,
-                                    children: [
-                                      Text(
-                                        'Grand Total:',
-                                        style:
-                                            TextStyle(fontFamily: 'Cera-Bold'),
-                                      ),
-                                      Text(
-                                        '35.40',
-                                        style:
-                                            TextStyle(fontFamily: 'Cera-Bold'),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  CheckboxExample(),
-                                  Text(
-                                    'Are you Sure you want to confirm ?',
-                                    style: TextStyle(
-                                      fontFamily: 'Cera-Bold',
-                                    ),
-                                  ),
-                                ],
-                              )
-                            ],
-                          ),
-                        ),
-                        actions: <Widget>[
-                          ElevatedButton(
-                            onPressed: () {
-                              // Perform payment action here
-                              // For example, you can navigate to a payment screen
-                              // or trigger a payment API call
-                              // After payment is completed, close the dialog
-                              Navigator.of(context)
-                                  .push(MaterialPageRoute(builder: (context) {
-                                return const PaymentSelection();
-                              }));
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Pallete.buttonColor,
-                            ),
-                            child: const Text(
-                              'Proceed',
-                              style: TextStyle(
-                                fontFamily: 'Cera-Bold',
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                } else if (_userData == alreadyExistsMessage) {
-                  // Show toast notification
-                  _showToastNotification();
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-              ),
-              child: const Text(
-                'PAY NOW',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontFamily: 'Cera-Bold',
-                  fontSize: 14,
-                ),
-              ),
-            )
-          ],
-        ),
-      ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
       body: ListView.builder(
         itemCount: widget.cartItems.length,
         itemBuilder: (context, index) {
@@ -505,112 +856,3 @@ class _SelectedChannelScreenState extends State<SelectedChannelScreen> {
     );
   }
 }
-
-class DropdownMenuExample extends StatefulWidget {
-  const DropdownMenuExample({super.key});
-
-  @override
-  State<DropdownMenuExample> createState() => _DropdownMenuExampleState();
-}
-
-class _DropdownMenuExampleState extends State<DropdownMenuExample> {
-  String dropdownValue = list.first;
-
-  @override
-  Widget build(BuildContext context) {
-    return DropdownMenu<String>(
-      initialSelection: list.first,
-      onSelected: (String? value) {
-        // This is called when the user selects an item.
-        setState(() {
-          dropdownValue = value!;
-        });
-      },
-      dropdownMenuEntries: list.map<DropdownMenuEntry<String>>((String value) {
-        return DropdownMenuEntry<String>(value: value, label: value);
-      }).toList(),
-    );
-  }
-}
-
-class CheckboxExample extends StatefulWidget {
-  const CheckboxExample({super.key});
-
-  @override
-  State<CheckboxExample> createState() => _CheckboxExampleState();
-}
-
-class _CheckboxExampleState extends State<CheckboxExample> {
-  bool isChecked = false;
-
-  @override
-  Widget build(BuildContext context) {
-    Color getColor(Set<MaterialState> states) {
-      const Set<MaterialState> interactiveStates = <MaterialState>{
-        MaterialState.pressed,
-        MaterialState.hovered,
-        MaterialState.focused,
-      };
-      if (states.any(interactiveStates.contains)) {
-        return Colors.blue;
-      }
-      return Colors.blue;
-    }
-
-    return Checkbox(
-      checkColor: Colors.white,
-      fillColor: MaterialStateProperty.resolveWith(getColor),
-      value: isChecked,
-      onChanged: (bool? value) {
-        setState(() {
-          isChecked = value!;
-        });
-      },
-    );
-  }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// SizedBox(
-//                       width: 100,
-//                       child: Column(
-//                         crossAxisAlignment: CrossAxisAlignment.start,
-//                         mainAxisAlignment: MainAxisAlignment.start,
-//                         children: [
-//                           Text(
-//                             '${item['package_name']}',
-//                             style: const TextStyle(
-//                               fontFamily: 'Cera-Bold',
-//                               fontSize: 14,
-//                             ),
-//                           ),
-//                           Text(
-//                             durationText, // Display duration text based on catIds
-//                             style: const TextStyle(
-//                               fontFamily: 'Cera-Bold',
-//                               color: Colors.black,
-//                               fontSize: 10,
-//                             ),
-//                           ),
-//                           Text(
-//                             '${item['ttl_cst']}',
-//                             style: const TextStyle(
-//                               fontFamily: 'Cera-Bold',
-//                               fontSize: 14,
-//                             ),
-//                           ),
-//                         ],
-//                       ),
-//                     ),
