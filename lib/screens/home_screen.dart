@@ -12,6 +12,8 @@ import 'package:apsflsubscribes/screens/notifications_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'dart:async'; // Import dart:async for Timer
 
 class HomePageController {
   var selectedIndex = 0;
@@ -54,10 +56,13 @@ class _HomePageState extends State<HomePage>
   int? lmoMobile;
   int? crnt_pln_id;
 
+  int _fetchDataError = 0;
+  int _cust_infoError = 0;
+
   void _storeCurrentPlanId(String crnt_pln_id) async {
     final storage = FlutterSecureStorage();
     await storage.write(key: 'current_plan_id', value: crnt_pln_id);
-    print('this is secure storage outside $crnt_pln_id');
+    // print('this is secure storage outside $crnt_pln_id');
   }
 
   Future<void> _fetchData() async {
@@ -70,8 +75,8 @@ class _HomePageState extends State<HomePage>
     const apiUrl = 'http://bss.apsfl.co.in/apiv1/subscriberApploginDtls';
 
     final storage = FlutterSecureStorage();
-    final String? token = await storage.read(key: 'token');
     final String? cafId = await storage.read(key: 'caf_id');
+    final String? token = await storage.read(key: 'token');
 
     if (token == null || cafId == null) {
       setState(() {
@@ -132,8 +137,9 @@ class _HomePageState extends State<HomePage>
     } else {
       setState(() {
         _isLoading = false;
+        _fetchDataError = 1;
       });
-      throw Exception('Failed to fetch data');
+      // throw Exception('Failed to fetch data');
     }
   }
 // *********************************************************************** subscriberApploginDtls ***********************************************************
@@ -226,16 +232,51 @@ class _HomePageState extends State<HomePage>
         throw Exception('User info not found');
       }
     } else {
-      throw Exception('Failed to fetch data');
+      setState(() {
+        _isLoading = false;
+        _fetchDataError = 1;
+      });
+      // throw Exception('Failed to fetch data');
     }
   }
 
 // *********************************************************************** cstmr_packages ***********************************************************
 
+  // Add this method to handle showing toast notification if server is down
+  void _checkServerStatus() {
+    if (_fetchDataError == 1) {
+      // Start a timer to show toast notification after 1 minute
+      Timer(Duration(minutes: 1), () {
+        if (_isLoading) {
+          // Show toast notification if still loading after 1 minute
+          _showToastNotification();
+          // Close the app
+          Future.delayed(Duration(seconds: 2), () {
+            // Give some time to display the toast notification
+            Navigator.of(context).pop(); // Close the app
+          });
+        }
+      });
+    }
+  }
+
+  void _showToastNotification() {
+    Fluttertoast.showToast(
+      msg: "Server Down",
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      timeInSecForIosWeb: 1,
+      backgroundColor: Colors.red,
+      textColor: Colors.white,
+      fontSize: 16.0,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // print('Building HomePage...');
-
+    // Call _checkServerStatus method to show toast notification if server is down
+    _checkServerStatus();
     // Use FutureBuilder to build the widget tree based on the result of _fetchDataFuture
     // print('this is end date data $endDate');
     return FutureBuilder(

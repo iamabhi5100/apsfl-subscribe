@@ -146,7 +146,8 @@ class _SelectedChannelScreenState extends State<SelectedChannelScreen> {
         elevation: 8,
         child: Container(
           padding: const EdgeInsets.all(20),
-          height: allItemsCat2 ? MediaQuery.of(context).size.height * 0.124 : 0,
+          height: allItemsCat2 ? MediaQuery.of(context).size.height * 0.16 : 0,
+          // width: allItemsCat2 ? MediaQuery.of(context).size.width * 1 : 0,
           color: const Color.fromARGB(59, 208, 203, 203),
           child: Column(
             children: [
@@ -195,7 +196,7 @@ class _SelectedChannelScreenState extends State<SelectedChannelScreen> {
                           ),
                           // Inside the SizedBox where you want to display the calculated total price
                           SizedBox(
-                            width: MediaQuery.of(context).size.width * 0.3,
+                            // width: MediaQuery.of(context).size.width * 0.3,
                             child: Center(
                               child: Text(
                                 _calculateTotalPrice().toStringAsFixed(2) +

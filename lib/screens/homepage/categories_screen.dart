@@ -49,6 +49,9 @@ class CategoriesScreen extends StatelessWidget {
               ),
             ),
           ),
+          SizedBox(
+            width: 10,
+          ),
           GestureDetector(
             onTap: () {
               Navigator.of(context).push(MaterialPageRoute(builder: (context) {
@@ -83,6 +86,9 @@ class CategoriesScreen extends StatelessWidget {
               ),
             ),
           ),
+          SizedBox(
+            width: 10,
+          ),
           GestureDetector(
             onTap: () {
               Navigator.of(context).push(MaterialPageRoute(builder: (context) {
@@ -116,6 +122,9 @@ class CategoriesScreen extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+          SizedBox(
+            width: 10,
           ),
           GestureDetector(
             onTap: () {

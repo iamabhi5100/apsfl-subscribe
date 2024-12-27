@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'forgotpassword.dart'; // Import your ForgotPassword screen here
 import 'package:apsflsubscribes/utils/pallete.dart'; // Import your Palette here
+import 'package:fluttertoast/fluttertoast.dart'; // Import fluttertoast package
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -20,6 +21,30 @@ class _LoginScreenState extends State<LoginScreen> {
       'http://bss.apsfl.co.in/apiv1/subscriberApplogin'; // Your API URL
   final _storage = FlutterSecureStorage(); // Instance of FlutterSecureStorage
   bool _isPasswordVisible = false; // Declare _isPasswordVisible variable
+
+  void _showToastNotification() {
+    Fluttertoast.showToast(
+      msg: "No matching record Found",
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      timeInSecForIosWeb: 1,
+      backgroundColor: Colors.red,
+      textColor: Colors.white,
+      fontSize: 16.0,
+    );
+  }
+
+  void _showToastNotificationServerDown() {
+    Fluttertoast.showToast(
+      msg: "No matching record Found",
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      timeInSecForIosWeb: 1,
+      backgroundColor: Colors.red,
+      textColor: Colors.white,
+      fontSize: 16.0,
+    );
+  }
 
   Future<void> _handleLogin(BuildContext context) async {
     final String username = _usernameController.text.trim();
@@ -66,12 +91,16 @@ class _LoginScreenState extends State<LoginScreen> {
           }));
         } else {
           // Handle invalid credentials
+          _showToastNotification();
         }
       } else {
         // Handle HTTP request error
       }
     } catch (error) {
       // Handle other errors
+      // Server Down
+      _showToastNotificationServerDown();
+      print(' Handle invalid credentials');
     }
   }
 

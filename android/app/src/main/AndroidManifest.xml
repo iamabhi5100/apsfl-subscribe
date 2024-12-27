@@ -1,8 +1,13 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" 
+    package="com.apsflsubscribes.apsflsubscribes"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.RECEIVE_SMS"/>
     <application
         android:label="apsflsubscribes"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/launcher_icon"
+        android:usesCleartextTraffic="true"
+        tools:replace="android:label"
         >
         <activity
             android:name=".MainActivity"
